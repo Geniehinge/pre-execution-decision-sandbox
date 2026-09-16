@@ -1,0 +1,191 @@
+name: Phase 1 Schema Verification
+
+on:
+  push:
+    branches:
+      - phase1-schema-implementation
+    paths:
+      - 'db/migrations/**'
+      - 'db/verification/**'
+      - '.github/workflows/phase1_schema_verify.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'db/migrations/**'
+      - 'db/verification/**'
+      - '.github/workflows/phase1_schema_verify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-schema:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: pre_execution_sandbox
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pre_execution_sandbox"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Wait for PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 1
+          done
+
+      - name: Apply migration 0001
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0001_enable_extensions.sql
+
+      - name: Apply migration 0002
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0002_create_decision_premises.sql
+
+      - name: Apply migration 0003
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0003_create_decision_variables.sql
+
+      - name: Apply migration 0004
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0004_create_decision_constraints.sql
+
+      - name: Apply migration 0005
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0005_create_model_definitions.sql
+
+      - name: Apply migration 0006
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0006_create_dataset_definitions.sql
+
+      - name: Apply migration 0007
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0007_create_simulation_runs.sql
+
+      - name: Apply migration 0008
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0008_create_simulation_provenance.sql
+
+      - name: Apply migration 0009
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0009_create_sensitivity_metrics.sql
+
+      - name: Apply migration 0010
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0010_create_qualitative_analyses.sql
+
+      - name: Apply migration 0011
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0011_create_synthesis_analyses.sql
+
+      - name: Apply migration 0012
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0012_create_adjudication_records.sql
+
+      - name: Apply migration 0013
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/migrations/0013_create_audit_events.sql
+
+      - name: Run Phase 1 schema verification
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 \
+            -U postgres -d pre_execution_sandbox \
+            -f db/verification/phase1_schema_checks.sql
+
+      - name: Verification summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "=== Phase 1 Schema Verification PASSED ==="
+            echo "All 13 migrations applied successfully and schema verification completed without errors."
+          else
+            echo "=== Phase 1 Schema Verification FAILED ==="
+            echo "Review the failed step and its logs for details."
+            exit 1
+          fi
