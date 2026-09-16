@@ -29,7 +29,8 @@ BEGIN
           'model_definitions',
           'dataset_definitions',
           'simulation_runs',
-          'simulation_provenance',
+          'simulation_run_models',
+          'simulation_run_datasets',
           'sensitivity_metrics',
           'qualitative_analyses',
           'synthesis_analyses',
@@ -37,8 +38,8 @@ BEGIN
           'audit_events'
       );
 
-    IF v_table_count <> 12 THEN
-        RAISE EXCEPTION 'Expected 12 required tables, found %', v_table_count;
+    IF v_table_count <> 13 THEN
+        RAISE EXCEPTION 'Expected 13 required tables, found %', v_table_count;
     END IF;
 
     -- ========================================================================
