@@ -1,0 +1,162 @@
+name: Phase 1 Schema Verification
+
+on:
+  push:
+    branches:
+      - phase1-schema-implementation
+    paths:
+      - 'db/migrations/**'
+      - 'db/verification/**'
+      - '.github/workflows/phase1_schema_verify.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'db/migrations/**'
+      - 'db/verification/**'
+      - '.github/workflows/phase1_schema_verify.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-schema:
+    name: Verify Phase 1 Database Schema
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: pre_execution_sandbox
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pre_execution_sandbox"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Wait for PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          until pg_isready \
+            -h localhost \
+            -p 5432 \
+            -U postgres \
+            -d pre_execution_sandbox
+          do
+            echo "Waiting for PostgreSQL..."
+            sleep 1
+          done
+
+      - name: Verify migration files exist
+        run: |
+          set -euo pipefail
+
+          for migration in db/migrations/*.sql; do
+            test -f "$migration"
+            echo "Found: $migration"
+          done
+
+      - name: Apply database migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          for migration in db/migrations/*.sql; do
+            echo "========================================"
+            echo "Applying: $migration"
+            echo "========================================"
+
+            psql \
+              -v ON_ERROR_STOP=1 \
+              -h localhost \
+              -p 5432 \
+              -U postgres \
+              -d pre_execution_sandbox \
+              -f "$migration"
+          done
+
+      - name: Show resulting tables
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          echo "=== Tables created by migrations ==="
+
+          psql \
+            -v ON_ERROR_STOP=1 \
+            -h localhost \
+            -p 5432 \
+            -U postgres \
+            -d pre_execution_sandbox \
+            -c "
+              SELECT
+                table_name
+              FROM information_schema.tables
+              WHERE table_schema = 'public'
+              ORDER BY table_name;
+            "
+
+      # ================================================================
+      # VERIFIER DEPENDENCY
+      #
+      # This workflow intentionally delegates schema assertions to:
+      #
+      #   db/verification/phase1_schema_checks.sql
+      #
+      # That file MUST describe the schema produced by the migrations
+      # above. The currently committed verifier still contains older
+      # expectations (including simulation_provenance and the previous
+      # SHA-512 field checks), so a migration run can succeed while this
+      # verification step still fails.
+      #
+      # DO NOT change the migrations merely to satisfy an outdated
+      # verifier.
+      # ================================================================
+
+      - name: Run Phase 1 schema verifier
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          test -f db/verification/phase1_schema_checks.sql
+
+          psql \
+            -v ON_ERROR_STOP=1 \
+            -h localhost \
+            -p 5432 \
+            -U postgres \
+            -d pre_execution_sandbox \
+            -f db/verification/phase1_schema_checks.sql
+
+      - name: Verification summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "========================================"
+            echo "PHASE 1 SCHEMA VERIFICATION PASSED"
+            echo "========================================"
+            echo "All migration files applied successfully."
+            echo "The Phase 1 schema verifier also passed."
+          else
+            echo "========================================"
+            echo "PHASE 1 SCHEMA VERIFICATION FAILED"
+            echo "========================================"
+            echo "Inspect the failed step above."
+            exit 1
+          fi
