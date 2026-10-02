@@ -75,7 +75,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for migration in db/migrations/*.sql; do
+            for migration in db/schema/*.sql; do
             echo "========================================"
             echo "Applying: $migration"
             echo "========================================"
