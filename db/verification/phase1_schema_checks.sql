@@ -43,24 +43,25 @@ BEGIN
     END IF;
 
     -- ========================================================================
-    -- 2. Verify SHA-512 integrity fields exist
+        -- 2. Verify SHA-512 integrity fields exist (exact table/column pairs)
     -- ========================================================================
     SELECT COUNT(*) INTO v_sha512_field_count
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND column_name IN ('config_sha512', 'data_sha512', 'execution_sha512', 'result_sha512', 'adjudication_sha512')
-      AND table_name IN (
-          'decision_premises',
-          'model_definitions',
-          'dataset_definitions',
-          'simulation_runs',
-          'adjudication_records'
-      );
+    FROM information_schema.columns c
+    JOIN (VALUES
+        ('model_definitions',   'model_hash'),
+        ('dataset_definitions', 'dataset_hash'),
+        ('simulation_runs',     'config_hash'),
+        ('audit_events',        'event_hash')
+    ) AS expected(table_name, column_name)
+      ON c.table_name = expected.table_name
+     AND c.column_name = expected.column_name
+    WHERE c.table_schema = 'public'
+      AND c.data_type = 'character'
+      AND c.character_maximum_length = 128;
 
-    IF v_sha512_field_count < 5 THEN
-        RAISE EXCEPTION 'Expected at least 5 SHA-512 integrity fields, found %', v_sha512_field_count;
+    IF v_sha512_field_count <> 4 THEN
+        RAISE EXCEPTION 'Expected 4 SHA-512 integrity fields of type CHAR(128), found %', v_sha512_field_count;
     END IF;
-
     -- ========================================================================
     -- 3. Verify version relationships with UNIQUE constraints
     -- ========================================================================
