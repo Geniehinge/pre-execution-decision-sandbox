@@ -43,24 +43,25 @@ BEGIN
     END IF;
 
     -- ========================================================================
-    -- 2. Verify SHA-512 integrity fields exist
+        -- 2. Verify SHA-512 integrity fields exist (exact table/column pairs)
     -- ========================================================================
     SELECT COUNT(*) INTO v_sha512_field_count
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND column_name IN ('config_sha512', 'data_sha512', 'execution_sha512', 'result_sha512', 'adjudication_sha512')
-      AND table_name IN (
-          'decision_premises',
-          'model_definitions',
-          'dataset_definitions',
-          'simulation_runs',
-          'adjudication_records'
-      );
+    FROM information_schema.columns c
+    JOIN (VALUES
+        ('model_definitions',   'model_hash'),
+        ('dataset_definitions', 'dataset_hash'),
+        ('simulation_runs',     'config_hash'),
+        ('audit_events',        'event_hash')
+    ) AS expected(table_name, column_name)
+      ON c.table_name = expected.table_name
+     AND c.column_name = expected.column_name
+    WHERE c.table_schema = 'public'
+      AND c.data_type = 'character'
+      AND c.character_maximum_length = 128;
 
-    IF v_sha512_field_count < 5 THEN
-        RAISE EXCEPTION 'Expected at least 5 SHA-512 integrity fields, found %', v_sha512_field_count;
+    IF v_sha512_field_count <> 4 THEN
+        RAISE EXCEPTION 'Expected 4 SHA-512 integrity fields of type CHAR(128), found %', v_sha512_field_count;
     END IF;
-
     -- ========================================================================
     -- 3. Verify version relationships with UNIQUE constraints
     -- ========================================================================
@@ -95,8 +96,7 @@ BEGIN
     FROM information_schema.columns
     WHERE table_schema = 'public'
       AND table_name = 'simulation_runs'
-      AND column_name IN ('config_snapshot', 'execution_snapshot', 'snapshot_taken_at');
-
+      AND column_name IN ('execution_config_snapshot', 'executed_at');
     IF v_snapshot_count < 2 THEN
         RAISE EXCEPTION 'Expected at least 2 snapshot-related columns in simulation_runs, found %', v_snapshot_count;
     END IF;
@@ -107,9 +107,9 @@ BEGIN
     SELECT COUNT(*) INTO v_provenance_count
     FROM information_schema.tables
     WHERE table_schema = 'public'
-      AND table_name IN ('simulation_provenance', 'audit_events');
-
-    IF v_provenance_count <> 2 THEN
+      
+      AND table_name IN ('simulation_run_models', 'simulation_run_datasets', 'audit_events');
+    IF v_provenance_count <> 3 THEN
         RAISE EXCEPTION 'Expected provenance and audit tables, found %', v_provenance_count;
     END IF;
 
