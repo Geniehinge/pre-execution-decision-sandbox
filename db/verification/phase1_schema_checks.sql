@@ -107,8 +107,8 @@ BEGIN
     SELECT COUNT(*) INTO v_provenance_count
     FROM information_schema.tables
     WHERE table_schema = 'public'
-      AND table_name IN ('simulation_provenance', 'audit_events');
-
+      
+      AND table_name IN ('simulation_run_models', 'simulation_run_datasets', 'audit_events');
     IF v_provenance_count <> 2 THEN
         RAISE EXCEPTION 'Expected provenance and audit tables, found %', v_provenance_count;
     END IF;
