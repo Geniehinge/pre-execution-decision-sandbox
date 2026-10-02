@@ -109,7 +109,7 @@ BEGIN
     WHERE table_schema = 'public'
       
       AND table_name IN ('simulation_run_models', 'simulation_run_datasets', 'audit_events');
-    IF v_provenance_count <> 2 THEN
+    IF v_provenance_count <> 3 THEN
         RAISE EXCEPTION 'Expected provenance and audit tables, found %', v_provenance_count;
     END IF;
 
