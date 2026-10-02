@@ -96,8 +96,7 @@ BEGIN
     FROM information_schema.columns
     WHERE table_schema = 'public'
       AND table_name = 'simulation_runs'
-      AND column_name IN ('config_snapshot', 'execution_snapshot', 'snapshot_taken_at');
-
+      AND column_name IN ('execution_config_snapshot', 'executed_at');
     IF v_snapshot_count < 2 THEN
         RAISE EXCEPTION 'Expected at least 2 snapshot-related columns in simulation_runs, found %', v_snapshot_count;
     END IF;
