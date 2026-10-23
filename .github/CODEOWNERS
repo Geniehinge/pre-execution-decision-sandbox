@@ -1,0 +1,8 @@
+# PELLAIRI PEDS maintainers for repository policy and security-sensitive files.
+# Enable required code-owner review only after verifying independent reviewer coverage.
+/.github/ @unrestrictedcauser-ux
+/CODE_OF_CONDUCT.md @unrestrictedcauser-ux
+/CONTRIBUTING.md @unrestrictedcauser-ux
+/SECURITY.md @unrestrictedcauser-ux
+/CODEOWNERS @unrestrictedcauser-ux
+/docs/BRANCH_PROTECTION.md @unrestrictedcauser-ux
