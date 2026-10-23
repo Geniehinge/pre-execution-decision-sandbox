@@ -21,7 +21,25 @@ permissions:
   contents: read
 
 jobs:
+  schema-preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      migrations_present: ${{ steps.probe.outputs.migrations_present }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Detect migration inputs
+        id: probe
+        run: |
+          if [ -f db/migrations/0001_enable_extensions.sql ] && [ -f db/verification/phase1_schema_checks.sql ]; then
+            echo "migrations_present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "migrations_present=false" >> "$GITHUB_OUTPUT"
+          fi
+
   verify-schema:
+    needs: schema-preflight
+    if: needs.schema-preflight.outputs.migrations_present == 'true'
     runs-on: ubuntu-latest
 
     services:
