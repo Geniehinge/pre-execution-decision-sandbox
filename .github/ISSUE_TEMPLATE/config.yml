@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/Geniehinge/pre-execution-decision-sandbox/security/advisories/new
+    about: Do not report vulnerabilities in a public issue.
